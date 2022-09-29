@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 36f66802c54d2b54ab138fceaf306eeb, type: 3}
+  m_Name: WeaponHitScanBeam
+  m_EditorClassIdentifier: 
+  _weaponName: HitScanBeamWeapon
+  _weaponSlotSprite: {fileID: 21300000, guid: b016db914fbc0c44bab9a306e7659ccf, type: 3}
+  _hasAutoAim: 1
+  _firingMode: 2
+  _weaponLevels:
+  - _weaponModelName: HitScanBeamWeapon01
+    _totalRequierdXpForThisLevel: 100
+    _requierdGameProgressionForUpgrade: 0
+    _maxAmmo: 500
+    _fireRate: 0.05
+    _autoAimMaxTargets: 1
+    _projectilesShotPerTrigger: 1
+    _weaponShotAccuracy: 15.4
+    _weaponAimAssistStrength: 0.26
+  - _weaponModelName: HitScanBeamWeapon02
+    _totalRequierdXpForThisLevel: 100
+    _requierdGameProgressionForUpgrade: 0
+    _maxAmmo: 500
+    _fireRate: 0.4
+    _autoAimMaxTargets: 1
+    _projectilesShotPerTrigger: 1
+    _weaponShotAccuracy: 3.4
+    _weaponAimAssistStrength: 1

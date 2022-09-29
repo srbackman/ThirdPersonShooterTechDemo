@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 36f66802c54d2b54ab138fceaf306eeb, type: 3}
+  m_Name: WeaponDistanceProjectile
+  m_EditorClassIdentifier: 
+  _weaponName: DistanceProjectileWeapon
+  _weaponSlotSprite: {fileID: 21300000, guid: caa4554278b59ca4c858d1311b677fec, type: 3}
+  _hasAutoAim: 1
+  _firingMode: 1
+  _weaponLevels:
+  - _weaponModelName: DistanceProjectileWeapon01
+    _totalRequierdXpForThisLevel: 100
+    _requierdGameProgressionForUpgrade: 0
+    _maxAmmo: 500
+    _fireRate: 0.1
+    _autoAimMaxTargets: 1
+    _projectilesShotPerTrigger: 2
+    _weaponShotAccuracy: 8.2
+    _weaponAimAssistStrength: 0.015
+  - _weaponModelName: DistanceProjectileWeapon02
+    _totalRequierdXpForThisLevel: 100
+    _requierdGameProgressionForUpgrade: 0
+    _maxAmmo: 500
+    _fireRate: 0.09
+    _autoAimMaxTargets: 1
+    _projectilesShotPerTrigger: 5
+    _weaponShotAccuracy: 3.8
+    _weaponAimAssistStrength: 0.058
