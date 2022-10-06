@@ -37,11 +37,13 @@ public class InputCore : MonoBehaviour
         else weaponsCore.GetAimData(AimMode.none);
         /*Firing input*/
         FiringInputControll(weaponsWheelPressed);
+
+        playerMovement.MovementCore(inputActions.Player.Move.ReadValue<Vector2>(), inputActions.Player.Jump.WasPressedThisFrame(), inputActions.Player.Aim.IsPressed());
     }
 
     private void FixedUpdate()
     {
-        playerMovement.MovementCore(inputActions.Player.Move.ReadValue<Vector2>(), inputActions.Player.Jump.WasPressedThisFrame());
+        
     }
 
     private void FiringInputControll(bool weaponsWheelPressed)

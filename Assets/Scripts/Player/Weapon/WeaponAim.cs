@@ -25,9 +25,11 @@ public class WeaponAim : MonoBehaviour
     [Header("Aim Fine Roation Controll")]
     [SerializeField] private Transform _fineAimRotationTransform;
     [SerializeField] private Vector3 _fineAimAutoAimDisplacementVector;
+    [SerializeField] private float _maxFineAimRotationAngle;
+    private Quaternion _previousFineAimRotation = new Quaternion(0, 0, 0, 0);
     [Range(0.1f, 3f)]
     [SerializeField] private float _fineAimTickRotation = 1f;
-    [SerializeField] private float _fineAimTreshold = 1f;
+    [SerializeField] private float _fineAimSnapTreshold = 1f;
     [Space]
     [SerializeField] private GameObject _autoAimParentObject;
     [SerializeField] private RectTransform[] _registeredAutoAimRects;
@@ -55,8 +57,9 @@ public class WeaponAim : MonoBehaviour
     public void AwakePooling()
     {
         if (!weaponsWheel) weaponsWheel = GetComponent<WeaponsWheel>();
-        _registeredAutoAimRects = new RectTransform[weaponsWheel._currentScriptableObjectWeapon._weaponLevels[weaponsWheel._currentWeaponLevel]._autoAimMaxTargets + 1]; /* +1 slot for sorting.*/
-        _registeredAimHits = new RaycastHit[weaponsWheel._currentScriptableObjectWeapon._weaponLevels[weaponsWheel._currentWeaponLevel]._autoAimMaxTargets + 1]; /* +1 slot for sorting.*/
+        /* +1 slot for sorting.*/
+        _registeredAutoAimRects = new RectTransform[weaponsWheel._currentScriptableObjectWeapon._weaponLevels[weaponsWheel._currentWeaponLevel]._autoAimMaxTargets + 1];
+        _registeredAimHits = new RaycastHit[weaponsWheel._currentScriptableObjectWeapon._weaponLevels[weaponsWheel._currentWeaponLevel]._autoAimMaxTargets + 1];
     }
 
     public RaycastHit[] AimCoreControll(AimMode aimMode)
@@ -115,6 +118,8 @@ public class WeaponAim : MonoBehaviour
         }
         else if (aimMode == AimMode.auto)
         {
+                /*Set an avarge direction by adding all the targets directions 
+                 * into "sum" and then dividing it with the amount of targets.*/
             int i = 0;
             Vector3 sum = Vector3.zero;
             while (i < _registeredAimHits.Length && _registeredAimHits[i].transform != null)
@@ -130,8 +135,15 @@ public class WeaponAim : MonoBehaviour
         if (direction == Vector3.zero) direction = weaponCore._barrelTransform.forward;
         Vector3 rotationSteps = Vector3.RotateTowards(_fineAimRotationTransform.forward, direction, _fineAimTickRotation * Time.deltaTime, 1f);
         _fineAimRotationTransform.rotation = Quaternion.LookRotation(rotationSteps);
-        if (_fineAimTreshold > Quaternion.Angle(_fineAimRotationTransform.rotation, Quaternion.LookRotation(direction)))
-            _fineAimRotationTransform.rotation = Quaternion.LookRotation(direction);
+
+        ///*Snap into place if close enough to wanted position.*/
+        //if (_fineAimSnapTreshold > Quaternion.Angle(_fineAimRotationTransform.rotation, Quaternion.LookRotation(direction)))
+        //    _fineAimRotationTransform.localRotation = Quaternion.LookRotation(direction);
+
+        //if (_maxFineAimRotationAngle < Quaternion.Angle(_fineAimRotationTransform.rotation, _playerTransform.rotation))
+        //    _fineAimRotationTransform.rotation = _previousFineAimRotation;
+        //else
+        //    _previousFineAimRotation = _fineAimRotationTransform.rotation;
     }
 
     private void AimPhysicsTrajectory()
@@ -182,7 +194,6 @@ public class WeaponAim : MonoBehaviour
         if (Physics.Raycast(_playerCamera.ScreenToWorldPoint(_manualAimSightRect.position), _playerCamera.transform.forward, out RaycastHit hit, 1000, _raycastLayers))
         {
             _registeredAimHits[0] = hit;
-            print("found");
         }
         else
             _registeredAimHits[0] = new RaycastHit();
@@ -208,6 +219,7 @@ public class WeaponAim : MonoBehaviour
         _validTargets[_validTargets.Length - 1] = new RaycastHit();
     }
 
+    /*Calculate distance from player camera to every target in "rayHits" and return a distance array.*/
     private float[] CalculateDistanceAll(RaycastHit[] rayHits)
     {
         float[] distances = new float[rayHits.Length];
@@ -245,26 +257,28 @@ public class WeaponAim : MonoBehaviour
         return (m);
     }
 
-    private void SwapRaycastHits(bool withRects, RaycastHit[] raycastHits, int t1, int t2)
+    /*Swaps "raycastHits" and "_registeredAutoAimRects" if "withRects" is true.*/
+    private void SwapRaycastHits(bool withRects, RaycastHit[] raycastHits, int target1, int target2)
     {
-        RaycastHit tempRay = raycastHits[t1];
-        raycastHits[t1] = raycastHits[t2];
-        raycastHits[t2] = tempRay;
+        RaycastHit tempRay = raycastHits[target1];
+        raycastHits[target1] = raycastHits[target2];
+        raycastHits[target2] = tempRay;
         if(withRects)
         {
-            RectTransform tempRect = _registeredAutoAimRects[t1];
-            _registeredAutoAimRects[t1] = _registeredAutoAimRects[t2];
-            _registeredAutoAimRects[t2] = tempRect;
+            RectTransform tempRect = _registeredAutoAimRects[target1];
+            _registeredAutoAimRects[target1] = _registeredAutoAimRects[target2];
+            _registeredAutoAimRects[target2] = tempRect;
         }
     }
 
+    /*Compare _validTargets with _registeredAutoAimRects and set AutoAimSights on or off.*/
     private bool AutoAimCheckTargets()
     {
         for (int i = 0; i < _registeredAimHits.Length - 1;)
         {
-            if (_registeredAutoAimRects[i] && (_registeredAimHits[i].transform == null || !CheckTransformFromArray(_validTargets, _registeredAimHits[i], 0, _validTargets.Length - 1)))
+            if (_registeredAutoAimRects[i] && ((_registeredAimHits[i].transform == null) || (!CheckTransformFromArray(_validTargets, _registeredAimHits[i], 0, _validTargets.Length - 1))))
             {
-                //print("Set off.");
+                /*Set off.*/
                 _registeredAutoAimRects[i].gameObject.SetActive(false);
                 _registeredAutoAimRects[i] = null;
                 _registeredAimHits[i] = new RaycastHit();
@@ -275,7 +289,7 @@ public class WeaponAim : MonoBehaviour
             }
             if (_validTargets.Length > i && _validTargets[i].transform && !CheckTransformFromArray(_registeredAimHits, _validTargets[i], 0, _registeredAimHits.Length - 1))
             {
-                //print("Set on.");
+                /*Set on.*/
                 RectTransform sight = lib.poolingManager.SpawnAutoAimTarget();
                 _registeredAutoAimRects[_registeredAutoAimRects.Length - 1] = sight;
                 _registeredAimHits[_registeredAimHits.Length - 1] = _validTargets[i];
@@ -284,7 +298,7 @@ public class WeaponAim : MonoBehaviour
 
                 if (_registeredAutoAimRects[_registeredAutoAimRects.Length - 1])
                 {
-                    //print("Set off during 'Set on'.");
+                    /*Set temp slot off during 'Set on'.*/
                     _registeredAutoAimRects[_registeredAutoAimRects.Length - 1].gameObject.SetActive(false);
                 }
                 _registeredAutoAimRects[_registeredAutoAimRects.Length - 1] = null;
@@ -295,7 +309,7 @@ public class WeaponAim : MonoBehaviour
         return (_registeredAimHits.Length != 0);
     }
 
-    /**/
+    /*Check if the "hit" is in "rayHits" array.*/
     private bool CheckTransformFromArray(RaycastHit[] rayHits, RaycastHit hit, int low, int high)
     {
         int mostMiddle = (low + (int)((high - low) / 2));

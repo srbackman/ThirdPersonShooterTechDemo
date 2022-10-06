@@ -51,15 +51,13 @@ public class PlayerMovement : MonoBehaviour
     void Awake()
     {
         _controller = GetComponent<CharacterController>();
-        //_playerCore = GetComponent<PlayerCore>();
     }
 
-    public void MovementCore(Vector2 direction, bool jumping)
+    public void MovementCore(Vector2 direction, bool jumping, bool aiming)
     {
         _jumpInput = jumping;
-        //Vector2 direction = inputCore._inputActions.Player.Move.ReadValue<Vector2>();
-        if (direction.magnitude > 0.1f) { PlayerBasicMovementControll(direction); }
-        _controller.Move(Vector3.down * 0.1f);
+        if (direction.magnitude > 0.1f || aiming) { PlayerBasicMovementControll(direction, aiming); }
+        //_controller.Move(Vector3.down * 0.1f * Time.deltaTime);
         if (!_controller.isGrounded && _fallOnOff) { PlayerFallControll(); }
         else { _fallTimer = 0f; }
         PlayerSliding();
@@ -70,15 +68,12 @@ public class PlayerMovement : MonoBehaviour
     {
         if (_raycastParentingOnOff) { PlayerParentingControll(); }
         if (ParentAnimatorVelocity().magnitude != 0) { _controller.Move(ParentAnimatorVelocity() * Time.deltaTime); }
-
     }
 
     private void PlayerFallControll()
     {
-        print("fall");
         if (_fallTimer < _fallTimeToMaxSpeed) { _fallTimer += Time.deltaTime; }
         float trueFallSpeed = /*_fallMaxSpeed*/_gravity * (_fallTimer / _fallTimeToMaxSpeed);
-        print(trueFallSpeed);
         Vector3 vector = new Vector3(0f, trueFallSpeed, 0f);
         _controller.Move(vector * Time.deltaTime);
     }
@@ -88,6 +83,7 @@ public class PlayerMovement : MonoBehaviour
         transform.parent = Raycast2dCircleDown().transform;
     }
 
+    /*Used for grounding checks and for sliding off too steep surfaces.*/
     private RaycastHit Raycast2dCircleDown()
     {
         RaycastHit trueHit;
@@ -133,20 +129,26 @@ public class PlayerMovement : MonoBehaviour
         {
             print("sliding");
             Vector3 slideDirection = normal + Vector3.down;
-            _controller.Move(slideDirection.normalized * _gravity * Time.deltaTime);
+            _controller.Move((slideDirection.normalized * _gravity) * Time.deltaTime);
         }
     }
 
-    private void PlayerBasicMovementControll(Vector2 direction)
+    private void PlayerBasicMovementControll(Vector2 direction, bool aiming)
     {
         float targetAngle = Mathf.Atan2(direction.x, direction.y) * Mathf.Rad2Deg + _camera.eulerAngles.y; /*Hard float data from movement direction + camera rotation.*/
-        float angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref _turnSmoothVelocity, _turnSmoothTime); /*Smoothening the player roation.*/
-        if (direction.magnitude > 0.1f) { transform.rotation = Quaternion.Euler(0f, angle, 0f); } /*Turn player towards a direction by combining camera rotation and moving direction.*/
+        float angle;
+        if (!aiming)
+            angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref _turnSmoothVelocity, _turnSmoothTime); /*Smoothening the player roation.*/
+        else
+            angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, _camera.eulerAngles.y, ref _turnSmoothVelocity, _turnSmoothTime);
+        if (direction.magnitude > 0.1f || aiming)
+            transform.rotation = Quaternion.Euler(0f, angle, 0f);
 
         Vector3 moveDir = Quaternion.Euler(0f, targetAngle, 0f) * Vector3.forward; /*Changing the forward facing direction for movement or something.*/
         _controller.Move(((moveDir * direction.magnitude) * _moveSpeed) * Time.deltaTime); /*The moving part.*/
     }
 
+    /*Get this objects current parent animator velocity.*/
     private Vector3 ParentAnimatorVelocity()
     {
         Vector3 platformVelocity = Vector3.zero;
@@ -162,8 +164,6 @@ public class PlayerMovement : MonoBehaviour
 
     private void PlayerJumpControll()
     {
-        //bool jumpInput = _playerCore._inputActions.Player.Jump.ReadValue<float>() > 0.1f;
-
         if (_controller.isGrounded && _jumpInput)
         {
             _jumpTimer = 0f;

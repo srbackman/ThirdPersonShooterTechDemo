@@ -22,7 +22,7 @@ MonoBehaviour:
     _requierdGameProgressionForUpgrade: 0
     _maxAmmo: 500
     _fireRate: 0.1
-    _autoAimMaxTargets: 1
+    _autoAimMaxTargets: 6
     _projectilesShotPerTrigger: 2
     _weaponShotAccuracy: 8.2
     _weaponAimAssistStrength: 0.015
