@@ -142,7 +142,6 @@ public class PoolingManager : MonoBehaviour
             if ((i + 1) >= _pooledAutoAimSights.Length)
             {
                 _pooledAutoAimSights = lib.genericFunctions.ExpandArray<RectTransform>(_pooledAutoAimSights, _poolChunkCreationSize);
-                print(_pooledAutoAimSights[i]);
                 InstantiateEmptyAutoAimSlots();
             }
         }

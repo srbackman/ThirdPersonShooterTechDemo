@@ -20,12 +20,6 @@ public class StatisticsMonitor : MonoBehaviour
         _renderTimeMs = FrameTimingManager.GetGpuTimerFrequency();
         totalTime = _aimTimeMs + _shootingTimeMs + _renderTimeMs;
 
-        _totalTimeText.text = "Total: " + totalTime.ToString() + "ms";
-        _aimTimeText.text = "Aiming: " + _aimTimeMs.ToString() + "ms";
-        _shootingTimeText.text = "Shooting: " + _shootingTimeMs.ToString() + "ms";
-        _renderTimeText.text = "Render: " + _renderTimeMs.ToString() + "ms";
-
-
         _aimTimeMs = 0;
         _shootingTimeMs = 0;
         _renderTimeMs = 0;

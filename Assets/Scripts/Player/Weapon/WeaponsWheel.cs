@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.UI;
 using UnityEngine;
+using TMPro;
 
 public class WeaponsWheel : MonoBehaviour
 {
@@ -16,7 +17,12 @@ public class WeaponsWheel : MonoBehaviour
     [SerializeField] private int _weaponWheelMaxPages = 3;
     [HideInInspector] public int _currentWeaponSlot = 0;
     [HideInInspector] public int _currentWeaponLevel = 0;
-
+    [SerializeField] private TMP_Text _selectedWeaponWheelWeaponNameText;
+    [Space]
+    [SerializeField] private Image _currentWeaponImageObject;
+    [SerializeField] private Image _previousWeaponImageObject;
+    [SerializeField] private Image _nextWeaponImageObject;
+    [Space]
     public List<ScriptableObjectWeaponType> _tempWeaponsList;
     public ScriptableObjectWeaponType _currentScriptableObjectWeapon;
     private void Awake()
@@ -68,13 +74,17 @@ public class WeaponsWheel : MonoBehaviour
         }
     }
 
+    private void UpdateSelectedWeaponWheelWeapon()
+    {
+
+    }
+
     private void UpdateWeaponWheelSelection()
     {
         int i = 0;
         while(i < _weaponWheelSlots.Length)
         {
             int a = i + (_weaponWheelCurrentPage * 8);
-
             if ((a < _tempWeaponsList.Count) && _tempWeaponsList[a])
             {
                 _weaponWheelSlots[i].sprite = _tempWeaponsList[i + (_weaponWheelCurrentPage * 8)]._weaponSlotSprite;
@@ -86,13 +96,36 @@ public class WeaponsWheel : MonoBehaviour
         }
     }
 
+    private void UpdateWeaponQuickSelection()
+    {
+        int nextImageSlot = _currentWeaponSlot + 1;
+        int previousImageSlot = _currentWeaponSlot - 1;
+
+        if (nextImageSlot > _tempWeaponsList.Count - 1) nextImageSlot = 0;
+        while (_tempWeaponsList[nextImageSlot] == null)
+        {
+            nextImageSlot++;
+            if (nextImageSlot > _tempWeaponsList.Count - 1) nextImageSlot = 0;
+        }
+        if (previousImageSlot < 0) previousImageSlot = _tempWeaponsList.Count - 1;
+        while (_tempWeaponsList[previousImageSlot] == null)
+        {
+            previousImageSlot--;
+            if (previousImageSlot < 0) previousImageSlot = _tempWeaponsList.Count - 1;
+        }
+        _nextWeaponImageObject.sprite = _tempWeaponsList[nextImageSlot]._weaponSlotSprite;
+        _currentWeaponImageObject.sprite = _currentScriptableObjectWeapon._weaponSlotSprite;
+        _previousWeaponImageObject.sprite = _tempWeaponsList[previousImageSlot]._weaponSlotSprite;
+    }
+
     public void SwitchWeapon(ScriptableObjectWeaponType weaponTypeData)
     {
         weaponShooting.OneExistingProjectileDeactivateTrigger();
-        if (weaponTypeData && _currentScriptableObjectWeapon == weaponTypeData) return;
         _currentScriptableObjectWeapon = _tempWeaponsList[_currentWeaponSlot];
+        UpdateWeaponQuickSelection();
         Transform weaponModel = GetSOWeaponLevelModel(weaponTypeData);
         weaponsCore.SetBarrelTransform(weaponModel);
+        //if (weaponTypeData && _currentScriptableObjectWeapon == weaponTypeData) return;
     }
     
     /*Find the weapon level model from the "_weaponModelCollection".*/

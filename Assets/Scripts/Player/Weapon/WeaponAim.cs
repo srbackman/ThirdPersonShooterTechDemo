@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System;
+using TMPro;
 
 public enum AimMode
 {
@@ -13,12 +14,15 @@ public enum AimMode
 public class WeaponAim : MonoBehaviour
 {
     private ClassLibrary lib;
+    private PoolingManager poolingManager;
     private WeaponsWheel weaponsWheel;
     private WeaponsCore weaponCore;
     public Camera _playerCamera;
     public Transform _playerTransform;
     [SerializeField] private RectTransform _manualAimSightRect;
     [HideInInspector] public Vector3 _manualAimHitPoint;
+    [SerializeField] private float _maxAimDistance;
+    [Space]
     [SerializeField] private Rigidbody _leftHandRigidBody;
     [SerializeField] private Rigidbody _rightHandRigidBody;
     [Space]
@@ -26,7 +30,6 @@ public class WeaponAim : MonoBehaviour
     [SerializeField] private Transform _fineAimRotationTransform;
     [SerializeField] private Vector3 _fineAimAutoAimDisplacementVector;
     [SerializeField] private float _maxFineAimRotationAngle;
-    private Quaternion _previousFineAimRotation = new Quaternion(0, 0, 0, 0);
     [Range(0.1f, 3f)]
     [SerializeField] private float _fineAimTickRotation = 1f;
     [SerializeField] private float _fineAimSnapTreshold = 1f;
@@ -35,6 +38,7 @@ public class WeaponAim : MonoBehaviour
     [SerializeField] private RectTransform[] _registeredAutoAimRects;
     [SerializeField] private RaycastHit[] _registeredAimHits;
     [Space]
+    [Header("Raycasting Layers")]
     [SerializeField] private LayerMask _targetLayers;
     [SerializeField] private LayerMask _raycastLayers;
     [Header("AutoAim")]
@@ -43,12 +47,15 @@ public class WeaponAim : MonoBehaviour
     [Header("PhysicsAiming")]
     [SerializeField] private LineRenderer _lineRenderer;
     [SerializeField] private Transform _endHitDotTransform;
+    [Space]
+    [SerializeField] private TMP_Text _currentAimModeText;
 
     private RaycastHit[] _validTargets;
 
     private void Awake()
     {
         lib = FindObjectOfType<ClassLibrary>();
+        poolingManager = FindObjectOfType<PoolingManager>();
         weaponsWheel = GetComponent<WeaponsWheel>();
         weaponCore = GetComponent<WeaponsCore>();
         _playerCamera = Camera.main;
@@ -64,6 +71,10 @@ public class WeaponAim : MonoBehaviour
 
     public RaycastHit[] AimCoreControll(AimMode aimMode)
     {
+        if (aimMode.ToString() != _currentAimModeText.text)
+        {
+            _currentAimModeText.text = (aimMode.ToString() + " | free");
+        }
         if (aimMode == AimMode.none)
         {
             if (_registeredAimHits[0].transform)
@@ -87,6 +98,10 @@ public class WeaponAim : MonoBehaviour
         if (_manualAimSightRect.gameObject.activeSelf)
         {
             _manualAimSightRect.gameObject.SetActive(false);
+            if (_registeredAimHits[0].transform)
+            {
+                _registeredAimHits[0] = new RaycastHit();
+            }
         }
         if(aimMode == AimMode.auto && weaponsWheel._currentScriptableObjectWeapon._hasAutoAim)
         {
@@ -109,9 +124,9 @@ public class WeaponAim : MonoBehaviour
         {
             RaycastHit hit;
             /*Raycast straight forward from camera into the world.*/
-            Physics.Raycast(_playerCamera.transform.position, _playerCamera.transform.forward, out hit, 1000);
+            Physics.Raycast(_playerCamera.transform.position, _playerCamera.transform.forward, out hit, _maxAimDistance);
             if (!hit.transform)
-                direction = ((_playerCamera.transform.forward * 1000) - _playerTransform.position).normalized;
+                direction = ((_playerCamera.transform.forward * _maxAimDistance) - _playerTransform.position).normalized;
             else
                 direction = (hit.point - weaponCore._barrelTransform.position).normalized;
             Debug.DrawLine(weaponCore._barrelTransform.position, weaponCore.transform.position + direction * 40, Color.white);
@@ -127,8 +142,11 @@ public class WeaponAim : MonoBehaviour
                 sum += _registeredAimHits[i].transform.position;
                 i++;
             }
-            if (_registeredAimHits[i].transform != null)
+            int variant = i == 1 ? 0 : i == 2 ? 2 : 1;
+            if (i > 0 && _registeredAimHits[i - variant].transform != null)
                 direction = ((sum / i) - (weaponCore._barrelTransform.position + _fineAimAutoAimDisplacementVector)).normalized;
+            else if (_registeredAimHits[0].transform != null)
+                direction = (_registeredAimHits[0].point - _fineAimRotationTransform.position);
             else
                 direction = _playerTransform.forward;
         }
@@ -163,10 +181,15 @@ public class WeaponAim : MonoBehaviour
     {
         ScriptableObjectWeaponType scriptableWeapon = weaponsWheel._currentScriptableObjectWeapon;
         /*Setup. Get objects in front of the player. Changing in future for something better.*/
-        if ((_validTargets == null) || (_validTargets.Length != scriptableWeapon._weaponLevels[0]._autoAimMaxTargets + 1))
+        if ((_validTargets == null) || (_validTargets.Length < scriptableWeapon._weaponLevels[weaponsWheel._currentWeaponLevel]._autoAimMaxTargets + 1))
         {
-            _validTargets = new RaycastHit[scriptableWeapon._weaponLevels[0]._autoAimMaxTargets + 1];
+            _validTargets = new RaycastHit[scriptableWeapon._weaponLevels[weaponsWheel._currentWeaponLevel]._autoAimMaxTargets + 1];
+            int newAutoAimSightChunks = (scriptableWeapon._weaponLevels[weaponsWheel._currentWeaponLevel]._autoAimMaxTargets + 1) - _registeredAimHits.Length;
+
+            _registeredAutoAimRects = lib.genericFunctions.ExpandArray<RectTransform>(_registeredAutoAimRects, newAutoAimSightChunks);
+            _registeredAimHits = lib.genericFunctions.ExpandArray<RaycastHit>(_registeredAimHits, newAutoAimSightChunks);
         }
+        ClearValidTargetsArray();
         Vector3 pos = _playerTransform.position + (_playerTransform.forward * _maxAutoAimDistance);
 
         RaycastHit[] currentRaycastHits;
@@ -188,13 +211,9 @@ public class WeaponAim : MonoBehaviour
     private void ManualAimSystem() //!!add physics aim!!
     {
         if (!_manualAimSightRect.gameObject.activeSelf)
-        {
             _manualAimSightRect.gameObject.SetActive(true);
-        }
-        if (Physics.Raycast(_playerCamera.ScreenToWorldPoint(_manualAimSightRect.position), _playerCamera.transform.forward, out RaycastHit hit, 1000, _raycastLayers))
-        {
+        if (Physics.Raycast(_playerCamera.ScreenToWorldPoint(_manualAimSightRect.position), _playerCamera.transform.forward, out RaycastHit hit, _maxAimDistance, _raycastLayers))
             _registeredAimHits[0] = hit;
-        }
         else
             _registeredAimHits[0] = new RaycastHit();
     }
@@ -208,13 +227,19 @@ public class WeaponAim : MonoBehaviour
         {
             Vector3 rayDirectionForCamera = (ray.transform.position - _playerCamera.transform.position).normalized;
             Vector3 rayDirectionForPlayer = (ray.transform.position - _playerTransform.position).normalized;
-            Physics.Raycast(_playerCamera.transform.position, rayDirectionForCamera, out RaycastHit cameraHit, 1000, _raycastLayers);
-            Physics.Raycast(_playerTransform.position, rayDirectionForPlayer, out RaycastHit playerHit, 1000, _raycastLayers);
-            if (playerHit.transform != ray.transform || cameraHit.transform != ray.transform) continue;
+            Physics.Raycast(_playerCamera.transform.position, rayDirectionForCamera, out RaycastHit cameraHit, _maxAimDistance, _raycastLayers);
+            Physics.Raycast(_playerTransform.position, rayDirectionForPlayer, out RaycastHit playerHit, _maxAimDistance, _raycastLayers);
+            if (playerHit.transform != ray.transform || cameraHit.transform != ray.transform || !ray.transform.GetComponent<Renderer>().isVisible) continue;
 
             _validTargets[validsFound] = playerHit;
             validsFound++;
-            if (validsFound > _validTargets.Length - 1) break;
+            if (validsFound >= _validTargets.Length || validsFound >= weaponsWheel._currentScriptableObjectWeapon._weaponLevels[weaponsWheel._currentWeaponLevel]._autoAimMaxTargets) break;
+        }
+
+        while (validsFound < _validTargets.Length)
+        {
+            _validTargets[validsFound] = new RaycastHit();
+            validsFound++;
         }
         _validTargets[_validTargets.Length - 1] = new RaycastHit();
     }
@@ -226,7 +251,7 @@ public class WeaponAim : MonoBehaviour
         for (int i = 0; i < rayHits.Length; i++)
         {
             if (!rayHits[i].transform) { distances[i] = Mathf.Infinity; continue; }
-            distances[i] = Vector3.Distance(_playerCamera.transform.position, rayHits[i].transform.position);
+            distances[i] = Vector3.Distance(_playerTransform.position, rayHits[i].transform.position);
         }
         return (distances);
     }
@@ -332,9 +357,7 @@ public class WeaponAim : MonoBehaviour
         for(int i = 0; i < _registeredAimHits.Length; i++)
         {
             if (_registeredAimHits[i].transform == null || _registeredAutoAimRects[i] == null || !_registeredAutoAimRects[i].gameObject.activeSelf)
-            {
                 continue;
-            }
             _registeredAutoAimRects[i].position = _playerCamera.WorldToScreenPoint(_registeredAimHits[i].transform.position);
         }
     }
