@@ -128,7 +128,7 @@ public class PlayerMovement : MonoBehaviour
         if (_controller.isGrounded && (Mathf.Abs(normal.x) + Mathf.Abs(normal.z)) > _slidingStartLimit)
         {
             print("sliding");
-            Vector3 slideDirection = normal + Vector3.down;
+            Vector3 slideDirection = -normal + Vector3.down;
             _controller.Move((slideDirection.normalized * _gravity) * Time.deltaTime);
         }
     }
@@ -145,7 +145,8 @@ public class PlayerMovement : MonoBehaviour
             transform.rotation = Quaternion.Euler(0f, angle, 0f);
 
         Vector3 moveDir = Quaternion.Euler(0f, targetAngle, 0f) * Vector3.forward; /*Changing the forward facing direction for movement or something.*/
-        _controller.Move(((moveDir * direction.magnitude) * _moveSpeed) * Time.deltaTime); /*The moving part.*/
+        if (direction.magnitude > 0.1f)
+            _controller.Move(((moveDir * direction.magnitude) * _moveSpeed) * Time.deltaTime); /*The moving part.*/
     }
 
     /*Get this objects current parent animator velocity.*/
