@@ -72,6 +72,7 @@ public class PhysicsProjectileData
 public class ImpactEffectData
 {
     public string _effectName = "Unnamed Effect";
+
     //[Header("Combining may result into an error if there is \nmore than 2 effects trying to combine into one!")]
     //public bool _combineWithBelow = false;
     public ImpactEffectType _impactEffect = ImpactEffectType.none;

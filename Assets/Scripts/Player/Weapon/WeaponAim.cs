@@ -73,7 +73,7 @@ public class WeaponAim : MonoBehaviour
     {
         if (aimMode.ToString() != _currentAimModeText.text)
         {
-            _currentAimModeText.text = (aimMode.ToString() + " | free");
+            _currentAimModeText.text = ("AimMode: " + aimMode.ToString() + " | free");
         }
         if (aimMode == AimMode.none)
         {

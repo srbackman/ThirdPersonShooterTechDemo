@@ -12,7 +12,8 @@ public class PooledProjectile
 { /*Holds a single projectile.*/
     public Transform _assignedWeaponPrefab;
     public float _projectileTimeLeft;
-    public float _impactEffectTimeLeft;
+    public float _visualImpactEffectTimeLeft;
+    public bool _oneTimeImpactEffect;
     public int _totalBounces;
     public ProjectileCore _projectileCore;
     public ProjectileComponent _activeProjectile;
@@ -68,9 +69,10 @@ public class PoolingManager : MonoBehaviour
                 tempPooledProjectilesChunks[i] = _pooledProjectileChunks[i];
             }
         }
-        /*Create expanded chunk array and add existing chunks back.*/
+        /*Create expanded chunk array*/
         _pooledProjectileChunks = new PooledChunk[_pooledProjectileChunks == null ? 1 : _pooledProjectileChunks.Length + 1];
         _pooledProjectileChunks[_pooledProjectileChunks.Length - 1] = new PooledChunk();
+        /*Add existing chunks back.*/
         if (tempPooledProjectilesChunks != null)
         {
             for (int i = 0; i < tempPooledProjectilesChunks.Length; i++)
@@ -78,7 +80,7 @@ public class PoolingManager : MonoBehaviour
                 _pooledProjectileChunks[i] = tempPooledProjectilesChunks[i];
             }
         }
-        InstantiateEmptyProjectileSlots();
+        InstantiateNewProjectileSlots();
     }
 
     /*Find a free slot and set the correct projectile gameobject active.*/
@@ -134,11 +136,13 @@ public class PoolingManager : MonoBehaviour
     {
         for(int i = 0; i < _pooledAutoAimSights.Length; i++)
         {
+            /*Set curreent slot(i) active and return it.*/
             if (!_pooledAutoAimSights[i].gameObject.activeSelf)
             {
                 _pooledAutoAimSights[i].gameObject.SetActive(true);
                 return (_pooledAutoAimSights[i]);
             }
+            /*Create more AutoAimSights.*/
             if ((i + 1) >= _pooledAutoAimSights.Length)
             {
                 _pooledAutoAimSights = lib.genericFunctions.ExpandArray<RectTransform>(_pooledAutoAimSights, _poolChunkCreationSize);
@@ -158,7 +162,7 @@ public class PoolingManager : MonoBehaviour
         }
     }
 
-    private void InstantiateEmptyProjectileSlots()
+    private void InstantiateNewProjectileSlots()
     {
         int chunksLenght = _pooledProjectileChunks.Length == 0 ? 1 : _pooledProjectileChunks.Length;
         _pooledProjectileChunks[chunksLenght - 1]._pooledProjectiles = new PooledProjectile[_poolChunkCreationSize];
@@ -195,9 +199,18 @@ public class PoolingManager : MonoBehaviour
     private bool CountDownPooledProjectileTimers(int chunk, int projectileSlot)
     {
         PooledProjectile pooledProjectile = _pooledProjectileChunks[chunk]._pooledProjectiles[projectileSlot];
-        if ((pooledProjectile._activeProjectile._projectileLifetime == 0)) return (false);
+        if ((pooledProjectile._activeProjectile._projectileLifetime == 0))
+            return (false);
         pooledProjectile._projectileTimeLeft -= Time.deltaTime;
-        if (pooledProjectile._projectileTimeLeft <= 0) { ResetProjectileCore(chunk, projectileSlot); return (false); }
+        if (pooledProjectile._projectileTimeLeft <= 0) 
+        {
+            pooledProjectile._visualImpactEffectTimeLeft -= Time.deltaTime;
+            if (pooledProjectile._activeProjectile._hasImpactEffect ? (pooledProjectile._visualImpactEffectTimeLeft <= 0) : (true))
+            {
+                ResetProjectileCore(chunk, projectileSlot);
+                return (false);
+            }
+        }
         return (true);
     }
 
@@ -232,22 +245,107 @@ public class PoolingManager : MonoBehaviour
         ProjectileComponent projectileComponent = pooledProjectile._activeProjectile;
         pooledProjectile._totalBounces++;
         ReceiveDamage receiveDamage = collision.transform.GetComponent<ReceiveDamage>();
-        if (receiveDamage)
+        
+        if (receiveDamage && pooledProjectile._totalBounces < projectileComponent._physicsProjectileData._maxBounces)
             receiveDamage.TakeDamage(projectileComponent._projectileDamage, projectileComponent.transform.position, projectileComponent._impactEffectDatas);
-        if (pooledProjectile._totalBounces >= pooledProjectile._activeProjectile._physicsProjectileData._maxBounces)
+
+        if (pooledProjectile._totalBounces >= projectileComponent._physicsProjectileData._maxBounces)
+            ImpactEffectControll(receiveDamage, pooledProjectile, projectileComponent, chunk, projectileSlot);
+        
+    }
+
+    private void ImpactEffectControll(ReceiveDamage receiveDamage, PooledProjectile pooledProjectile, ProjectileComponent projectileComponent, int chunk, int projectileSlot)
+    {
+        print(pooledProjectile._oneTimeImpactEffect);
+        EffectComponent effectComponent = null;
+        if (projectileComponent._impactEffectDatas != null && projectileComponent._impactEffectDatas.Length > 0)
+            effectComponent = FindImpactEffectData(projectileComponent._impactEffectDatas[0]._effectName, pooledProjectile);
+        if (effectComponent == null)
         {
-            EffectComponent effectComponent = null;
-            if (pooledProjectile._activeProjectile._impactEffectDatas != null && pooledProjectile._activeProjectile._impactEffectDatas.Length > 0)
-                effectComponent = FindImpactEffectData(pooledProjectile._activeProjectile._impactEffectDatas[0]._effectName, pooledProjectile);
-
-
-            if (effectComponent == null)
-                ResetProjectileCore(chunk, projectileSlot);
-            else
+            ResetProjectileCore(chunk, projectileSlot);
+            return;
+        }
+        if (!pooledProjectile._oneTimeImpactEffect && pooledProjectile._activeProjectile._hasImpactEffect)
+        {
+            effectComponent.gameObject.SetActive(true);
+            print("impact");
+            int damage = 0;
+            float visualImpactEffectTime = 0;
+            string animationName = FindVisualImpactEffectAnimationName(projectileComponent._impactEffectDatas[0]._effectName, pooledProjectile._projectileCore);
+            pooledProjectile._oneTimeImpactEffect = true;
+            print(animationName);
+            if (animationName != "")
             {
+                print("play");
+                effectComponent.transform.position = projectileComponent.transform.position;
+                pooledProjectile._projectileCore._animator.Play(animationName);
+            }
+            
+            ImpactEffectType impactEffectType = projectileComponent._impactEffectDatas[0]._impactEffect;
+            visualImpactEffectTime = effectComponent._visualEffectDuartion;
 
+            switch (impactEffectType)
+            {
+                case ImpactEffectType.none:
+                    break;
+                case ImpactEffectType.shatter:
+                    DealDirectionalDamage();
+                    break;
+                case ImpactEffectType.explosion:
+                    float areaSize = effectComponent._explosionEffect._explosionRadius;
+                    DealAreaDamage(areaSize, damage, projectileComponent.transform.position, projectileComponent._impactEffectDatas);
+                    break;
+                case ImpactEffectType.deployWeapon:
+                    DeployWeapon(projectileComponent.transform.position, projectileComponent._impactEffectDatas);
+                    break;
+                default: /*fire, ice, electricity and acid effects.*/
+                    DoDamageOverTime(receiveDamage, damage, projectileComponent.transform.position, projectileComponent._impactEffectDatas);
+                    break;
+            }
+            projectileComponent.gameObject.SetActive(false);
+            pooledProjectile._visualImpactEffectTimeLeft = visualImpactEffectTime;
+            pooledProjectile._projectileTimeLeft = 0;
+        }
+    }
+
+    private string FindVisualImpactEffectAnimationName(string effectName, ProjectileCore projectileCore)
+    {
+        string animationName = "";
+        foreach (EffectFolder folder in projectileCore._effectFolders)
+        {
+            if (folder._effectName == effectName)
+            {
+                animationName = folder._effectAnimationName;
+                break;
             }
         }
+        return (animationName);
+    }
+
+    private void DoDamageOverTime(ReceiveDamage receiveDamage, int damage, Vector3 hitPoint, ImpactEffectData[] impactEffectData)
+    {
+
+    }
+
+    private void DealDirectionalDamage()
+    {
+
+    }
+
+    private void DealAreaDamage(float size, int damage, Vector3 hitPoint, ImpactEffectData[] impactEffectData)
+    {
+        print("area");
+        RaycastHit[] raycastHits = Physics.SphereCastAll(hitPoint, size, new Vector3(0.01f, 0.01f, 0.01f));
+        foreach (RaycastHit hit in raycastHits)
+        {
+            ReceiveDamage receiveDamage = hit.transform.GetComponent<ReceiveDamage>();
+            if (receiveDamage)
+                receiveDamage.TakeDamage(damage, hitPoint, impactEffectData);
+        }
+    }
+
+    private void DeployWeapon(Vector3 hitPoint, ImpactEffectData[] impactEffectData)
+    {
 
     }
 
@@ -270,10 +368,15 @@ public class PoolingManager : MonoBehaviour
     private void ResetProjectileCore(int chunk, int projectileSlot)
     {
         _pooledProjectileChunks[chunk]._projectilesInUse--;
+
         _pooledProjectileChunks[chunk]._pooledProjectiles[projectileSlot]._activeProjectile.gameObject.SetActive(false);
         _pooledProjectileChunks[chunk]._pooledProjectiles[projectileSlot]._activeProjectile = null;
+        _pooledProjectileChunks[chunk]._pooledProjectiles[projectileSlot]._oneTimeImpactEffect = false;
         ProjectileCore projectileCore = _pooledProjectileChunks[chunk]._pooledProjectiles[projectileSlot]._projectileCore;
-
+        foreach (EffectFolder folder in projectileCore._effectFolders)
+        {
+            folder._effectComponent.gameObject.SetActive(false);
+        }
         projectileCore.gameObject.SetActive(false);
     }
 }

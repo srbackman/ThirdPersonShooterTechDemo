@@ -13,6 +13,13 @@ public class EffectComponent : MonoBehaviour
     public ExplosionEffectData _explosionEffect;
     public DeployEffectData _deployEffect;
 
+    private void OnDrawGizmos()
+    {
+        if (_explosionEffect._explosionRadius <= 0)
+            return;
+
+        Gizmos.DrawWireSphere(transform.position, _explosionEffect._explosionRadius);
+    }
 }
 
 public class KnockbackEffectData
@@ -56,3 +63,4 @@ public class DeployEffectData
     public string _deployableName;
     public float _lifeTime = 12f;
 }
+
